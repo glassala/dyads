@@ -837,11 +837,42 @@ instance : Semiring Dyad where
     x + x = B
 -/
 theorem self_cancel (x : Dyad) :
-
+    x + x = B := by
+        cases x <;> rfl
+/--
+    Left distributivity.
+-/
+theorem times_dist_plus_left (x y z : Dyad) :
+    x * (y + z) = (x * y) + (x * z) := by
+        cases x <;> cases y <;> cases z <;> rfl -- only feasible with small types.
+/--
+    Right distributivity.
+-/
+theorem times_dist_plus_right (x y z : Dyad) :
+    (x + y) * z = (x * z) + (y * z) := by
+        cases x <;> cases y <;> cases z <;> rfl -- if it ain't broke...
+/--
+    Natural scaling w/r/t +.
+-/
+def ns_plus (n : ℕ) (x : Dyad) :=
+    match (n % 2 == 1) with
+        | true => x
+        | false => B
+/--
+    Under +, each element is its own inverse.
+-/
+instance : Neg Dyad where
+    neg := id
+/--
+    x² = x
+-/
+theorem idempotent_square_dyad (x : Dyad) :
+    x * x = x := by
+        cases x <;> rfl
 /-
     The Boolean ring on Dyad with + and *.
 -/
-instance the_two_ring' : BooleanRing Dyad where
+instance the_two_ring : BooleanRing Dyad where
     zero := B
     one := A
     neg := id -- + is like XOR, so every element is its own additive inverse.
@@ -854,4 +885,36 @@ instance the_two_ring' : BooleanRing Dyad where
         cases x <;> cases y <;> cases z <;> rfl
     add_comm := λ x ↦ λ y ↦ by
         cases x <;> cases y <;> rfl
-    neg_add_cancel :=
+    neg_add_cancel := self_cancel
+    mul := λ x ↦ λ y ↦ x * y
+    one_mul := min_top_left -- Mathlib.Order.BoundedOrder.Lattice
+    mul_one := min_top_right -- Mathlib.Order.BoundedOrder.Lattice
+    zero_mul := annihilation_beta -- ↑
+    mul_zero := beta_annihilation -- ↑
+    mul_assoc := min_assoc -- Mathlib.Order.Defs.LinearOrder
+    left_distrib := times_dist_plus_left
+    right_distrib := times_dist_plus_right
+    nsmul := nsmulRec
+    natCast := λ n ↦ match (n % 2 == 1) with
+        | true => A
+        | false => B
+    natCast_succ := λ n ↦ by
+        have mod_two_cases : n % 2 = 0 ∨ n % 2 = 1 := by
+            exact Nat.mod_two_eq_zero_or_one n
+        cases mod_two_cases with
+            | inl h_zero =>
+                simp_all
+                have h : (n + 1) % 2 == 1 := by
+                    simp [h_zero]
+                    rw [Nat.add_mod, h_zero]
+                simp_all [h]
+                rfl
+            | inr h_one =>
+                simp_all
+                have h : (n + 1) % 2 == 0 := by
+                    simp [h_one]
+                    rw [Nat.add_mod, h_one]
+                simp_all [h]
+                rfl
+    zsmul := zsmulRec
+    isIdempotentElem := idempotent_square_dyad
