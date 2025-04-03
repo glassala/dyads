@@ -430,11 +430,11 @@ def bool_iso_mod_two : Bool ≃ ZMod 2 where
     Since the property of parity of an integer, i.e. whether it is odd or even,
     is equivalent to its remainder when divided by 2 being 1 or 0 respectively,
     the same structures emerge from odd and even which emerge from true and false.
-    We can encode these structures through polynomials congruences modulo 2.
+    We can encode these structures through polynomial congruences modulo 2.
 
     Which of the two elements
     within a two-element set is which is irrelevant. Or, one could say it's a
-    matter of linguistics and not math, If all instances of "odd" and "even" in
+    matter of linguistics and not math. If all instances of "odd" and "even" in
     language were suddenly swapped, and everyone began insisting that numbers n where
     (n % 2 == 1) were even, and numbers m where (m % 2 == 0) were odd, then nothing
     would be fundamentally different about mathematics.
