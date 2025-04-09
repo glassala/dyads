@@ -1,14 +1,13 @@
-import Init.Prelude
-import Init.Data.Bool
 import Mathlib.Data.ZMod.Defs
-import Mathlib.Logic.IsEmpty
-import Mathlib.Data.Fintype.Card
 import Mathlib.Data.Finset.Basic
-import Mathlib.Logic.Equiv.Defs
 import Mathlib.Algebra.Ring.BooleanRing
-import Mathlib.Algebra.Group.Even
-import Mathlib.Order.Defs.LinearOrder
+import Mathlib.Data.Fintype.Basic
+set_option linter.unusedSectionVars false
 set_option linter.unusedVariables false
+
+/-
+    Part 1 : "2"
+-/
 
 instance plus : Add (Bool) where add x y := xor x y -- + is XOR.
 
@@ -885,36 +884,551 @@ instance the_two_ring : BooleanRing Dyad where
         cases x <;> cases y <;> cases z <;> rfl
     add_comm := λ x ↦ λ y ↦ by
         cases x <;> cases y <;> rfl
-    neg_add_cancel := self_cancel
+    neg_add_cancel := self_cancel -- ↑
     mul := λ x ↦ λ y ↦ x * y
     one_mul := min_top_left -- Mathlib.Order.BoundedOrder.Lattice
     mul_one := min_top_right -- Mathlib.Order.BoundedOrder.Lattice
     zero_mul := annihilation_beta -- ↑
     mul_zero := beta_annihilation -- ↑
     mul_assoc := min_assoc -- Mathlib.Order.Defs.LinearOrder
-    left_distrib := times_dist_plus_left
-    right_distrib := times_dist_plus_right
-    nsmul := nsmulRec
+    left_distrib := times_dist_plus_left -- ↑
+    right_distrib := times_dist_plus_right -- ↑
+    nsmul := nsmulRec -- Mathlib.Algebra.Group.Defs
     natCast := λ n ↦ match (n % 2 == 1) with
         | true => A
         | false => B
     natCast_succ := λ n ↦ by
         have mod_two_cases : n % 2 = 0 ∨ n % 2 = 1 := by
-            exact Nat.mod_two_eq_zero_or_one n
+            exact Nat.mod_two_eq_zero_or_one n --  Init.Data.Nat.Lemmas
         cases mod_two_cases with
             | inl h_zero =>
                 simp_all
                 have h : (n + 1) % 2 == 1 := by
                     simp [h_zero]
-                    rw [Nat.add_mod, h_zero]
+                    rw [Nat.add_mod, h_zero] --  Init.Data.Nat.Lemmas
                 simp_all [h]
                 rfl
             | inr h_one =>
                 simp_all
                 have h : (n + 1) % 2 == 0 := by
                     simp [h_one]
-                    rw [Nat.add_mod, h_one]
+                    rw [Nat.add_mod, h_one] --  Init.Data.Nat.Lemmas
                 simp_all [h]
                 rfl
-    zsmul := zsmulRec
+    zsmul := zsmulRec -- Mathlib.Algebra.Group.Defs
     isIdempotentElem := idempotent_square_dyad
+/-
+
+    Part 2 : "2ⁿ"
+
+    Set operations take place in a given "universe." We
+    cannot have a well-defined notion of "the set of all sets,"
+    and so we take a "class" of sets defined by some property,
+    and say "this is the universe of sets which we will be working
+    with."
+
+    Lean's notion of a universe is similarly a "type of types," but
+    type theory can evade the problem of defining a "type of all types"
+    no better than set theory can. A type of types must exist at a
+    higher "universe level" than the types it contains. Bool is an
+    element of Type, which is an element of Type 1, which is an
+    element of Type 2, and so on.
+
+    Here, our universe will be some arbitrary set X with finitely
+    many elements.
+
+    The "Finset X" for some type X is the set (type) of all finite sets
+    of elements of X. If X has finitely many elements, i.e. [Fintype X],
+    then Finset X is the set of all subsets of X. Another way of saying this
+    is that Finset X is P(X), the power set of X.
+
+    If X has n elements, then Finset X has 2ⁿ elements. The subset
+    inclusion relationship, together with ∩ and ∪, forms a
+    Boolean lattice on the power set of X.
+
+    Wvery set A ⊆ X has a complement X \ A ⊆ X, where X \ A is the
+    set of all elements which are in X but not in A.
+
+    The power set of ∅ is {∅} and forms a trivial Boolean algebra, where
+    ∅ is its own complement.
+
+    The power set of {∅} is {∅, {∅}}, and the algebra on ({∅, {∅}}, ∩, ∪)
+    is equivalent to the classical propositional logic with
+    ({true, false}, ∧, ∨), where logical NOT is absolute complementation.
+
+    Consider that, either obviously or counterintuitively,
+    {∅} \ {∅} = ∅, because the set of elements which are in {∅} but
+    not in {∅} has no elements in it, and as such is ∅. Similarly,
+    {∅} \ ∅ = {∅}, because ∅ ∉ ∅.
+
+    The power set of {∅, {∅}} is {∅, {∅}, {{∅}}, {∅, {∅}}}. Here, it
+    already becomes much easier to use letters for arbitrary elements:
+    let us say that some set K = {a, b}.
+
+    Then P(K) = {∅, {a}, {b}, {a, b}}. Here, it becomes a lot easier to
+    motivate the idea of a partial order. The two-element set has a partial
+    order on it, but that partial order happens to also be a total order.
+    For Boolean algebras with more than 2 elements in their ground sets,
+    the inclusion ordering on their subsets is partial but never total.
+
+    We can already see this in the (four-element) power set of the
+    two-element set. {a} ⊆ {a, b}, but {a} ⊈ {b} and {b} ⊈ {a}. Some
+    elements can be compared via this relation, but some cannot: the
+    ordering is partial but not total.
+
+-/
+variable {α : Type*} [DecidableEq α] [Fintype α]
+/--
+    Set intersection generalizes ∧, in that an element is in
+    the intersection of two sets only if it is in *both* of them.
+-/
+example (s : α) (a b : Finset α) :
+    s ∈ a ∩ b ↔ s ∈ a ∧ s ∈ b := by simp
+/--
+    Set union generalizes ∨, in that an element is in the union
+    of two sets if it is in *at least either* of them. That is,
+    either or both.
+-/
+example (s : α) (a b : Finset α) :
+    s ∈ a ∪ b ↔ s ∈ a ∨ s ∈ b := by simp
+/--
+    The difference (or relative complement) of two sets a \ b
+    is the set of elements which are in a but *not* in b.
+-/
+example (s : α) (a b : Finset α) :
+    s ∈ a \ b ↔ s ∈ a ∧ s ∉ b := by simp
+/--
+    The absolute complement of a set a is the set of elements which
+    are in that set's universe but not in a.
+-/
+example (s : α) (a : Finset α) :
+    s ∈ (Finset.univ \ a) ↔ ¬(s ∈ a) := by simp
+/--
+    Symmetric difference generalizes ⊕. The *symmetric* difference
+    of two sets a ∆ b is the set of
+    elements which are in *exactly either* of them. That is,
+    either but *not* both.
+-/
+example (s : α) (a b : Finset α) :
+    s ∈ (symmDiff a b) ↔ (s ∈ a) ^^ (s ∈ b) := by
+        rw [Finset.mem_symmDiff]
+        simp_all
+        tauto
+/--
+    Union distributes over intersection for subsets.
+-/
+theorem union_inter_dist (a b c : Finset α) :
+    (a ∪ b) ∩ (a ∪ c) ⊆ a ∪ b ∩ c := by
+        rw [<- Finset.union_inter_distrib_left]
+/--
+    Union distributes over intersection.
+-/
+theorem union_inter_dist_eq (a b c : Finset α) :
+    (a ∪ b) ∩ (a ∪ c) = a ∪ b ∩ c := by
+        rw [<- Finset.union_inter_distrib_left]
+/--
+    The union of the intersection of a and b and the set difference
+    of a and b is a.
+-/
+theorem complement_sup_inf (a b : Finset α) :
+    (a ∩ b) ∪ (a \ b) = a := by
+        rw [Finset.union_comm, Finset.sdiff_union_inter]
+/--
+    The intersection of the intersection of a and b and the
+    set difference of a and b is the empty set.
+-/
+theorem complement_inf_inf (a b : Finset α) :
+    (a ∩ b) ∩ (a \ b) = ∅ := by
+        let c := a ∩ b;
+        have h1 : a \ b = a \ c := by
+            rw [Finset.sdiff_inter_self_left]
+        rw [h1]
+        change c ∩ (a \ c) = ∅
+        apply Finset.inter_sdiff_self
+/--
+    The universe set is a subset of the union of a and
+    the absolute complement of a.
+-/
+theorem univ_union_incl_univ (a : Finset α) :
+    Finset.univ ⊆ a ∪ (Finset.univ \ a) := by
+        rw [Finset.union_comm]
+        rw [Finset.sdiff_union_of_subset]
+        apply Finset.subset_univ
+/--
+    The intersection of a and its absolute complement is
+    a subset of the empty set. Note that the only subset of
+    the empty set is the empty set.
+-/
+theorem univ_inter_empty (a : Finset α) :
+    a ∩ (Finset.univ \ a) ⊆ ∅ := by
+        rw [Finset.inter_sdiff_self]
+/--
+    The intersection of a and its absolute complement is the empty set.
+-/
+theorem self_inter_compl_empty (a : Finset α) :
+     a ∩ (Finset.univ \ a) = ∅ := by simp
+/--
+    The intersection of a and b is a subset of the union of a and b.
+-/
+theorem inter_subs_union (a b : Finset α) :
+    a ∩ b ⊆ a ∪ b := by
+        intro x hx
+        simp only [Finset.mem_union] at *
+        left
+        exact Finset.mem_of_mem_inter_left hx
+/--
+    The intersection of a and the absolute complement of b is
+    the set difference of a and the intersection of a and b.
+-/
+theorem inter_compl (a b  : Finset α) :
+    a ∩ (Finset.univ \ b) = a \ (a ∩ b) := by
+        rw [Finset.sdiff_inter_self_left]
+        ext a_1 : 1 -- "apply extensionality"
+        simp_all only [
+            Finset.mem_inter,
+            Finset.mem_sdiff,
+            Finset.mem_univ,
+            true_and
+        ]
+/--
+    Generalized logical implication: x is an element of the union
+    of b and the absolute complement of a if and only if x is not in a
+    or x is in b.
+-/
+theorem mem_imp {a b : Finset α} {x : α} :
+    x ∈ b ∪ (Finset.univ \ a) ↔ x ∉ a ∨ x ∈ b := by
+        simp [or_comm]
+/--
+    The finite subsets of a finite set form a Boolean lattice,
+    where the subset relation is a weak partial order:
+
+    ∀ a, b, c ∈ P(α),
+
+    1. a ⊆ a
+    2. a ⊆ b ∧ b ⊆ a -> a = b
+    3. a ⊆ b ∧ b ⊆ c -> a ⊆ c
+
+    Every pair of elements a, b ∈ P(α) has a unique supremum
+    or "join," which is set union ∪.
+
+    a ⊆ a ∪ b ∧ b ⊆ a ∪ b.
+
+    a ∪ b is the least upper bound on a and b.
+
+    Every pair of elements a, b ∈ P(α) has a unique infimum
+    or "meet," which is set intersection ∩.
+
+    a ∩ b ⊆ a ∧ a ∩ b ⊆ b
+
+    a ∩ b is the greatest lower bound on a and b.
+
+    Union distributes over intersection.
+
+    There is an absolute complement.
+
+    There is a maximal element, which is the universe set.
+
+    Within a universe, every set is a subset of the universe.
+
+    For any set a in the universe, the universe is a subset of
+    the union of a and its absolute complement.
+
+    There is a minimal element, which is the empty set ∅.
+
+    The empty subset is a subset of every set.
+
+    The intersection of any set a in the universe and the
+    absolute complement of a is ∅.
+
+-/
+instance power_set_algebra : BooleanAlgebra (Finset α) where
+    le := λ a b ↦ a ⊆ b
+    le_refl := λ a ↦ subset_refl a
+    le_trans := λ _ _ _ ↦ subset_trans
+    le_antisymm := λ _ _ ↦ subset_antisymm
+    sup := λ a b ↦ a ∪ b
+    le_sup_left := λ _ _ ↦ Finset.subset_union_left
+    le_sup_right := λ _ _ ↦ Finset.subset_union_right
+    sup_le := λ _ _ _ ↦ Finset.union_subset
+    inf := λ a b ↦ a ∩ b
+    inf_le_left := λ _ _ ↦ Finset.inter_subset_left
+    inf_le_right := λ _ _ ↦ Finset.inter_subset_right
+    le_inf := λ _ _ _ ↦ Finset.subset_inter
+    le_sup_inf := union_inter_dist
+    compl := λ a ↦ Finset.univ \ a
+    top := Finset.univ
+    le_top := Finset.subset_univ
+    top_le_sup_compl := univ_union_incl_univ
+    bot := ∅
+    bot_le := Finset.empty_subset
+    inf_compl_le_bot := univ_inter_empty
+/-
+    The lattice of a power set of a set with n elements is
+    modeled by the vertices of a hypercube in n dimensions
+    (or "n-cube"). That is to say that an n-cube has 2ⁿ vertices.
+
+    A 0-cube is a point, and as such has
+    1 vertex.
+
+    ( )
+
+    A 1-cube is a line segment, and as such
+    has 2 vertices.
+
+    ( )---------------(a)
+
+    A 2-cube is a square.
+
+    ( )----------------(b)
+     |                  |
+     |                  |
+     |                  |
+     |                  |
+     |                  |
+     |                  |
+    (a)----------------(a, b)
+
+    A 3-cube is a...cube.
+
+    ( )----------------(b)
+     | \                | \
+     |  \               |  \
+     |   \              |   \
+     |    \             |    \
+     |     (c)----------------(b, c)
+     |      |           |      |
+    (a)-----|----------(a, b)  |
+       \    |             \    |
+        \   |              \   |
+         \  |               \  |
+          \ |                \ |
+       (a, c)-------------(a, b, c)
+-/
+/-
+    As with the two-element algebra, where forming a
+    Boolean lattice with ∨ and ∧ means that
+    (∨, ∧, false, true) forms a semiring, the
+    more general power set algebra forming a Boolean
+    lattice with ∪ and ∩ means that, for some finite
+    universe X, (∪, ∩, ∅, X) forms a semiring.
+-/
+def ns_union (n : ℕ) (a : Finset α) :=
+    match n with
+        | 0 => ∅
+        | _ => a
+/--
+    Since the union-intersection semiring is another "classic"
+    mathematical object, the relevant lemmas are largely all
+    available on Mathlib.
+    One can often wing it by "thinking algebraically" with Lean's
+    naming conventions. For example, I was not exactly sure
+    there would be a "Finset.inter_univ" lemma, but since the
+    proof requirement is "mul_one," "mul" is intersection,
+    and "one" is the universe set, it is sensible to replace
+    them for their abbreviations and pray that some industrious
+    mathematician has already written the proof for the property
+    and given it a sensible name.
+-/
+instance : Semiring (Finset α) where
+    zero := ∅
+    one := Finset.univ
+    add := λ a ↦ λ b ↦ a ∪ b
+    add_assoc := Finset.union_assoc
+    zero_add := Finset.empty_union
+    add_zero := Finset.union_empty
+    add_comm := Finset.union_comm
+    mul := λ a ↦ λ b ↦ a ∩ b
+    mul_assoc := Finset.inter_assoc
+    zero_mul := Finset.empty_inter
+    mul_zero := Finset.inter_empty
+    one_mul := Finset.univ_inter
+    mul_one := Finset.inter_univ
+    left_distrib := λ a ↦ λ b ↦ λ c ↦ by
+        change a ∩ (b ∪ c) = a ∩ b ∪ a ∩ c
+        aesop
+    right_distrib := Finset.union_inter_distrib_right
+    nsmul := ns_union
+    nsmul_succ := by
+        intro n
+        induction n with
+            | zero =>
+                unfold ns_union
+                intro x
+                simp_all
+                change x = ∅ ∪ x
+                simp [Finset.empty_union]
+            | succ k ih =>
+                unfold ns_union
+                simp_all
+                change ∀ (x : Finset α), x = x ∪ x
+                simp_all
+/--
+    The natural way to "scale" symmetric difference for
+    natural numbers.
+-/
+def ns_symm (n : ℕ) (a : Finset α) :=
+    match n % 2 with
+        | 0 => ∅
+        | _ => a
+/--
+    The natural way to "scale" symmetric differnce for integers.
+    Effectively the same function as "ns_symm," but takes
+    integers, then explicitly casts them to natural numbers.
+-/
+def zs_symm (n : ℤ) (a : Finset α) :=
+    let k : ℕ := n.natAbs
+    if (k % 2 == 0) then ∅ else a
+/--
+    ∅ is the "additive identity" for symmetric difference.
+-/
+theorem symm_diff_empty (a : Finset α) :
+    symmDiff ∅ a = a := by simp
+/--
+    A set is its own "additive inverse" under symmetric difference.
+-/
+theorem symm_diff_cancel_self (a : Finset α) :
+    symmDiff a a = ∅ := by simp -- symmDiff_self, Mathlib.Order.SymmDiff
+/--
+    If the symmetric difference of a set and itself "scaled" by n is that same
+    set, then that set scaled by n + 1 will be the empty set.
+-/
+@[simp]
+theorem ns_full_succ_empty (n : ℕ) (a : Finset α):
+    ns_symm n a = a → ns_symm (n + 1) a = ∅ := by
+        have mod_two_cases : n % 2 = 0 ∨ n % 2 = 1 := by
+            exact Nat.mod_two_eq_zero_or_one n
+        intro h
+        unfold ns_symm at *
+        cases mod_two_cases with
+            | inl h_zero =>
+                simp_all [h]
+                cases a; aesop
+            | inr h_one =>
+                simp_all [h, h_one]
+                rw [Nat.add_mod, h_one]
+/--
+    Verifies that symmetric difference "scaled" by a natural number
+    "works as expected," as it were.
+-/
+theorem ns_symm_succ (n : ℕ) (a: Finset α) :
+    ns_symm (n + 1) a = symmDiff (ns_symm n a) a := by
+        have mod_two_cases : n % 2 = 0 ∨ n % 2 = 1 := by
+            exact Nat.mod_two_eq_zero_or_one n
+        cases mod_two_cases with
+            | inl h_zero =>
+                simp only [ns_symm]
+                rw [h_zero]
+                simp only [beq_self_eq_true, cond_true]
+                rw [Nat.add_mod, h_zero]
+                have h : a = symmDiff ∅ a := by
+                    change a = symmDiff ⊥ a
+                    rw [bot_symmDiff]
+                rw [h]
+                simp [h_zero]
+            | inr h_one =>
+                simp only [ns_symm]
+                rw [h_one]
+                simp only [beq_self_eq_true, cond_true]
+                rw [Nat.add_mod, h_one]
+                have h : a = symmDiff ∅ a := by
+                    change a = symmDiff ⊥ a
+                    rw [bot_symmDiff]
+                rw [h]
+                simp [h_one]
+/--
+    Map from ℕ to the ring of subsets of a finite set X
+    with (∆, ∩, ∅, X).
+-/
+def natural_cast : ℕ -> (Finset α) :=
+    λ n ↦ match (n % 2 == 1) with
+        | true => Finset.univ
+        | _ => ∅
+/--
+    Also analogous to the two-element algebra, where
+    (⊕, ∧, false, true) forms a Boolean ring, the power
+    set of a finite set X forms a Boolean ring with
+    (∆, ∩, ∅, X).
+-/
+instance : BooleanRing (Finset α) where
+    zero := ∅
+    one := Finset.univ
+    neg := id
+    add := λ a ↦ λ b ↦ symmDiff a b
+    add_assoc := symmDiff_assoc
+    zero_add := λ a ↦ by
+        change symmDiff ∅ a = a
+        simp
+    add_zero := λ a ↦ by
+        change symmDiff a ∅ = a
+        simp
+    add_comm := symmDiff_comm
+    mul := λ a ↦ λ b ↦ a ∩ b
+    mul_assoc := Finset.inter_assoc
+    zero_mul := Finset.empty_inter
+    mul_zero := Finset.inter_empty
+    one_mul := Finset.univ_inter
+    mul_one := Finset.inter_univ
+    left_distrib := inf_symmDiff_distrib_left
+    right_distrib := inf_symmDiff_distrib_right
+    neg_add_cancel := symm_diff_cancel_self
+    nsmul := ns_symm
+    nsmul_succ := ns_symm_succ
+    zsmul := zs_symm
+    isIdempotentElem := Finset.inter_self
+    natCast := natural_cast
+    natCast_succ := λ n ↦ by
+        change natural_cast (n + 1) = symmDiff (natural_cast n) Finset.univ
+        unfold natural_cast
+        have mod_two_cases : n % 2 = 0 ∨ n % 2 = 1 := by
+            exact Nat.mod_two_eq_zero_or_one n
+        cases mod_two_cases with
+        | inl h_zero =>
+            rw [h_zero]
+            --simp only [beq_iff_eq, cond_false]
+            rw [Nat.add_mod, h_zero]
+            simp only [beq_self_eq_true, cond_true]
+            simp_all only [Nat.reduceBEq]
+            rw [symm_diff_empty]
+        | inr h_one =>
+            rw [h_one]
+            simp only [beq_self_eq_true, cond_true]
+            rw [Nat.add_mod, h_one]
+            rw [symm_diff_cancel_self]
+            aesop
+    zsmul_succ' := by
+        intro n a
+        simp_all [
+            Nat.succ_eq_add_one,
+            Nat.cast_add,
+            Nat.cast_one,
+            Nat.add_mod
+        ]
+        simp_all [zs_symm]
+        change (if (n + 1) % 2 = 0 then ∅ else a) = symmDiff (if n % 2 = 0 then ∅ else a) a
+        have mod_two_cases : n % 2 = 0 ∨ n % 2 = 1 := by
+            exact Nat.mod_two_eq_zero_or_one n
+        cases mod_two_cases with
+            | inl h_zero =>
+                rw [h_zero]
+                have h' : n % 2 = 0 → (n + 1) % 2 = 1 := by
+                    simp_all [
+                        Nat.mod_two_eq_zero_or_one
+                    ]
+                    rw [Nat.add_mod]
+                    simp_all
+                rw [h']
+                simp_all only [forall_const, one_ne_zero, ↓reduceIte]
+                rw [symm_diff_empty]
+                exact h_zero
+            | inr h_one =>
+                rw [h_one]
+                have h' : n % 2 = 1 → (n + 1) % 2 = 0 := by
+                    simp_all [
+                        Nat.mod_two_eq_zero_or_one
+                    ]
+                    rw [Nat.add_mod]
+                    simp_all
+                rw [h']
+                simp_all only [forall_const, one_ne_zero, ↓reduceIte]
+                rw [symm_diff_cancel_self]
+                exact h_one
