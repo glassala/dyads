@@ -399,9 +399,10 @@ instance : BooleanAlgebra Bool where
 
 
 /--
-    The Boolean type is isomorphic to the integers modulo 2.
+    There is a bijection between the Boolean type and the integers
+    modulo 2.
 -/
-def bool_iso_mod_two : Bool ≃ ZMod 2 where
+def bool_equiv_mod_two : Bool ≃ ZMod 2 where
     toFun := λ x ↦ match x with
         | true => 1
         | false => 0
